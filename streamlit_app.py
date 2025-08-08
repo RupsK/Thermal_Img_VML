@@ -368,14 +368,26 @@ Provide a concise, focused analysis."""
             if "blip" in model_id.lower():
                 # Load BLIP models with AutoProcessor
                 processor = AutoProcessor.from_pretrained(model_id, token=self.hf_token, use_fast=True)
-                model = AutoModelForImageTextToText.from_pretrained(model_id, token=self.hf_token)
-                model.to(self.device)
+                model = AutoModelForImageTextToText.from_pretrained(
+                    model_id, 
+                    token=self.hf_token,
+                    torch_dtype=torch.float32,  # Use float32 for CPU
+                    device_map="auto" if self.device == "cuda" else None
+                )
+                if self.device == "cpu":
+                    model = model.to(self.device)
                 
             elif "git" in model_id.lower():
                 # Load GIT model with fast processor
                 processor = AutoProcessor.from_pretrained(model_id, token=self.hf_token, use_fast=True)
-                model = AutoModelForImageTextToText.from_pretrained(model_id, token=self.hf_token)
-                model.to(self.device)
+                model = AutoModelForImageTextToText.from_pretrained(
+                    model_id, 
+                    token=self.hf_token,
+                    torch_dtype=torch.float32,  # Use float32 for CPU
+                    device_map="auto" if self.device == "cuda" else None
+                )
+                if self.device == "cpu":
+                    model = model.to(self.device)
                 
             elif "llava" in model_id.lower():
                 # Load LLaVA model with correct processor for LLaVA 1.5
@@ -386,8 +398,8 @@ Provide a concise, focused analysis."""
                     model = LlavaForConditionalGeneration.from_pretrained(
                         model_id,
                         token=self.hf_token,
-                        torch_dtype=torch.float16,
-                        device_map="auto",
+                        torch_dtype=torch.float32,  # Use float32 for CPU
+                        device_map="auto" if self.device == "cuda" else None,
                         low_cpu_mem_usage=True  # Optimize memory usage
                     )
                     

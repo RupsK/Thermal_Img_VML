@@ -35,7 +35,8 @@ class Config:
     
     # Model settings
     DEFAULT_MODEL = "BLIP Base"
-    DEVICE = "cuda" if os.getenv('USE_GPU', 'true').lower() == 'true' else "cpu"
+    # Force CPU for cloud deployment (no GPU available)
+    DEVICE = "cpu" if os.getenv('FORCE_CPU', 'true').lower() == 'true' else ("cuda" if os.getenv('USE_GPU', 'false').lower() == 'true' else "cpu")
     
     # Memory management
     LOW_MEMORY_MODE = os.getenv('LOW_MEMORY_MODE', 'false').lower() == 'true'
