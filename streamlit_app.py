@@ -128,7 +128,20 @@ class ThermalImageAnalyzer:
         
         # Initialize Hugging Face token from configuration
         self.hf_token = Config.HF_TOKEN
-        login(token=self.hf_token)
+        
+        # Validate and login with token
+        if self.hf_token:
+            try:
+                login(token=self.hf_token)
+                st.success("✅ Hugging Face token validated successfully")
+            except Exception as e:
+                st.error(f"❌ Invalid Hugging Face token: {str(e)}")
+                st.info("Please check your HUGGINGFACE_TOKEN in Streamlit Cloud settings")
+                st.stop()
+        else:
+            st.error("❌ HUGGINGFACE_TOKEN not found")
+            st.info("Please add your Hugging Face token in Streamlit Cloud settings")
+            st.stop()
         
         # Model configurations from configuration
         self.models = Config.MODELS
