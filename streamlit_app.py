@@ -3,7 +3,13 @@ import os
 import tempfile
 from PIL import Image
 import numpy as np
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: OpenCV import error: {e}")
+    print("OpenCV features will be disabled")
+    CV2_AVAILABLE = False
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -1269,14 +1275,18 @@ Analysis:"""
         # Convert to numpy array
         img_array = np.array(image)
         
-        # Apply thermal colormap if grayscale
-        if len(img_array.shape) == 2:
+        # Apply thermal colormap if grayscale and OpenCV is available
+        if len(img_array.shape) == 2 and CV2_AVAILABLE:
             img_array = cv2.applyColorMap(img_array, cv2.COLORMAP_JET)
         
         return img_array
     
     def apply_thermal_colormap(self, image, colormap_type="JET"):
         """Apply different thermal colormaps to the image"""
+        if not CV2_AVAILABLE:
+            st.warning("⚠️ OpenCV not available. Using basic image processing.")
+            return np.array(image)
+            
         if isinstance(image, str):
             image = Image.open(image)
         
