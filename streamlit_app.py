@@ -132,15 +132,35 @@ class ThermalImageAnalyzer:
         # Validate and login with token
         if self.hf_token:
             try:
-                login(token=self.hf_token)
-                st.success("✅ Hugging Face token validated successfully")
+                # Check token format first
+                if not self.hf_token.startswith('hf_'):
+                    st.error("❌ Invalid token format. Token should start with 'hf_'")
+                    st.info("Please check your HUGGINGFACE_TOKEN format")
+                    st.stop()
+                
+                # Try to login with more detailed error handling
+                try:
+                    login(token=self.hf_token)
+                    st.success("✅ Hugging Face token validated successfully")
+                except Exception as login_error:
+                    # Try alternative validation method
+                    try:
+                        from huggingface_hub import whoami
+                        user_info = whoami(token=self.hf_token)
+                        st.success(f"✅ Hugging Face token validated successfully (User: {user_info})")
+                    except Exception as whoami_error:
+                        st.error(f"❌ Invalid Hugging Face token: {str(login_error)}")
+                        st.info("Please check your HUGGINGFACE_TOKEN in your secrets.py file")
+                        st.info("💡 Try running: python setup_tokens.py")
+                        st.stop()
             except Exception as e:
-                st.error(f"❌ Invalid Hugging Face token: {str(e)}")
-                st.info("Please check your HUGGINGFACE_TOKEN in Streamlit Cloud settings")
+                st.error(f"❌ Token validation error: {str(e)}")
+                st.info("Please check your HUGGINGFACE_TOKEN configuration")
                 st.stop()
         else:
             st.error("❌ HUGGINGFACE_TOKEN not found")
-            st.info("Please add your Hugging Face token in Streamlit Cloud settings")
+            st.info("Please add your Hugging Face token in secrets.py file")
+            st.info("💡 Run: python setup_tokens.py")
             st.stop()
         
         # Model configurations from configuration
@@ -220,154 +240,96 @@ class ThermalImageAnalyzer:
                 st.warning("⚠️ LLaVA model or processor not available")
                 return None
             
-            # Prepare the image
+            # Prepare the image with better preprocessing
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
             
-            # Resize to standard LLaVA size (224x224 for LLaVA 1.5)
-            resized_image = pil_image.resize((224, 224), Image.Resampling.LANCZOS)
+            # Try multiple image sizes and preprocessing approaches
+            image_sizes = [(224, 224), (336, 336), (448, 448)]
             
             # Prepare thermal-specific prompt for concise output
-            thermal_prompt = """Briefly analyze this thermal image. Focus on:
-- Temperature patterns and heat distribution
-- Any thermal signatures or anomalies
-- Key thermal characteristics
-
-Provide a concise, focused analysis."""
-            
+            thermal_prompt = "Analyze this thermal image briefly. Focus on temperature patterns and any anomalies."
             prompt = custom_prompt or thermal_prompt
             
-            # Process with LLaVA - try different approaches based on processor type
-            try:
-                # Check processor type and use appropriate method
-                if hasattr(self, 'llava_processor_type') and 'Llava' in self.llava_processor_type:
-                    # Use LLaVA processor approach with proper image handling
-                    st.info("🔄 Using LLaVA processor approach...")
+            # Process with LLaVA using simplified, robust approach
+            st.info("🔄 Using LLaVA processor approach...")
+            
+            for img_size in image_sizes:
+                try:
+                    # Resize and prepare image
+                    test_image = pil_image.resize(img_size, Image.Resampling.LANCZOS)
+                    if test_image.mode != 'RGB':
+                        test_image = test_image.convert('RGB')
                     
-                    # Try LLaVA processing with multiple approaches
+                    # Try different processor call formats
                     try:
-                        # Approach 1: Try with different image preprocessing
-                        for img_size in [(224, 224), (336, 336)]:
-                            try:
-                                test_image = pil_image.resize(img_size, Image.Resampling.LANCZOS)
-                                if test_image.mode != 'RGB':
-                                    test_image = test_image.convert('RGB')
-                                
-                                # Try with concise prompt for short output
-                                inputs = processor(
-                                    images=test_image,
-                                    text="Briefly describe this thermal image in 1-2 sentences.",
-                                    return_tensors="pt"
-                                ).to(self.device)
-                                
-                                with torch.no_grad():
-                                    outputs = model.generate(
-                                        **inputs,
-                                        max_new_tokens=40,  # Very short for 1-2 lines
-                                        do_sample=True,
-                                        temperature=0.4,  # Very low temperature for accuracy
-                                        top_p=0.7,  # Lower for more focused output
-                                        repetition_penalty=1.0,  # Reduced penalty
-                                        early_stopping=True  # Stop early for shorter output
-                                    )
-                                
-                                caption = processor.tokenizer.decode(outputs[0], skip_special_tokens=True)
-                                
-                                # Clear GPU memory after processing
-                                if self.device == "cuda":
-                                    torch.cuda.empty_cache()
-                                
-                                if caption and len(caption.strip()) > 15:
-                                    st.success(f"✅ LLaVA succeeded with size {img_size}")
-                                    return caption
-                                    
-                            except Exception as size_error:
-                                st.warning(f"⚠️ LLaVA size {img_size} failed: {str(size_error)}")
-                                continue
+                        # Format 1: Standard LLaVA format
+                        inputs = processor(
+                            images=test_image,
+                            text=prompt,
+                            return_tensors="pt"
+                        ).to(self.device)
                         
-                        # Approach 2: Try with different processor call format
-                        try:
-                            test_image = pil_image.resize((224, 224), Image.Resampling.LANCZOS)
-                            if test_image.mode != 'RGB':
-                                test_image = test_image.convert('RGB')
+                        with torch.no_grad():
+                            outputs = model.generate(
+                                **inputs,
+                                max_new_tokens=50,
+                                do_sample=True,
+                                temperature=0.5,
+                                top_p=0.8,
+                                repetition_penalty=1.1,
+                                early_stopping=True
+                            )
+                        
+                        caption = processor.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                        
+                        if caption and len(caption.strip()) > 10:
+                            st.success(f"✅ LLaVA succeeded with size {img_size}")
+                            return caption
                             
-                            # Try alternative processor call with different prompt
-                            inputs = processor(test_image, "Analyze this thermal image briefly.", return_tensors="pt").to(self.device)
+                    except Exception as format1_error:
+                        st.warning(f"⚠️ LLaVA format 1 failed for size {img_size}: {str(format1_error)}")
+                        
+                        # Try Format 2: Alternative processor call
+                        try:
+                            inputs = processor(test_image, prompt, return_tensors="pt").to(self.device)
                             
                             with torch.no_grad():
                                 outputs = model.generate(
                                     **inputs,
-                                    max_length=50,   # Very short for 1-2 lines
-                                    num_beams=2,     # Fewer beams for faster generation
+                                    max_new_tokens=50,
                                     do_sample=True,
-                                    temperature=0.4,  # Very low temperature for accuracy
-                                    top_p=0.7,       # Lower for more focused output
-                                    repetition_penalty=1.0,  # Reduced penalty
+                                    temperature=0.5,
+                                    top_p=0.8,
+                                    repetition_penalty=1.1,
                                     early_stopping=True
                                 )
                             
                             caption = processor.decode(outputs[0], skip_special_tokens=True)
                             
-                            if caption and len(caption.strip()) > 15:
-                                st.success("✅ LLaVA succeeded with alternative format")
+                            if caption and len(caption.strip()) > 10:
+                                st.success(f"✅ LLaVA succeeded with alternative format for size {img_size}")
                                 return caption
                                 
-                        except Exception as alt_error:
-                            st.warning(f"⚠️ LLaVA alternative format failed: {str(alt_error)}")
-                            
-                    except Exception as llava_error:
-                        st.warning(f"⚠️ LLaVA processing failed: {str(llava_error)}")
-                        return None
+                        except Exception as format2_error:
+                            st.warning(f"⚠️ LLaVA format 2 failed for size {img_size}: {str(format2_error)}")
+                            continue
                     
-                else:
-                    # Use standard AutoProcessor approach
-                    st.info("🔄 Using standard AutoProcessor approach...")
-                    inputs = processor(resized_image, prompt, return_tensors="pt").to(self.device)
-                    
-                    with torch.no_grad():
-                        outputs = model.generate(
-                            **inputs,
-                            max_length=200,
-                            num_beams=3,
-                            do_sample=True,
-                            temperature=0.7,
-                            top_p=0.9,
-                            repetition_penalty=1.1,
-                            early_stopping=True
-                        )
-                    
-                    caption = processor.decode(outputs[0], skip_special_tokens=True)
-                    return caption
-                
-            except Exception as proc_error:
-                # Fallback to simpler approach
-                st.warning(f"⚠️ LLaVA primary processing failed, trying alternative: {str(proc_error)}")
-                
-                # Try with simplest possible approach
-                try:
-                    inputs = processor(resized_image, return_tensors="pt").to(self.device)
-                    
-                    with torch.no_grad():
-                        outputs = model.generate(
-                            **inputs,
-                            max_length=150,
-                            num_beams=2,
-                            do_sample=True,
-                            temperature=0.8,
-                            top_p=0.9,
-                            repetition_penalty=1.0,
-                            early_stopping=True
-                        )
-                    
-                    caption = processor.decode(outputs[0], skip_special_tokens=True)
-                    return caption
-                    
-                except Exception as simple_error:
-                    st.warning(f"⚠️ LLaVA simple processing also failed: {str(simple_error)}")
-                    return None
+                    # Clear GPU memory after each attempt
+                    if self.device == "cuda":
+                        torch.cuda.empty_cache()
+                        
+                except Exception as size_error:
+                    st.warning(f"⚠️ LLaVA size {img_size} failed: {str(size_error)}")
+                    continue
+            
+            # If all LLaVA attempts fail, return None to trigger fallback
+            st.warning("⚠️ LLaVA clean approach failed, trying alternative processing...")
+            return None
             
         except Exception as e:
             st.warning(f"LLaVA-Next processing failed: {e}")
+            st.info("🔄 Falling back to traditional computer vision analysis...")
             return None
     
     def load_model(self, model_name):
@@ -843,7 +805,48 @@ Provide a detailed, natural analysis suitable for thermal imaging professionals.
                                     
                             except Exception as blip_error:
                                 st.warning(f"⚠️ BLIP fallback failed: {str(blip_error)}")
-                                return None
+                                
+                                # Try a simpler BLIP approach as last resort
+                                try:
+                                    st.info("🔄 Trying simplified BLIP approach...")
+                                    
+                                    # Use a very simple prompt
+                                    simple_prompt = "Describe this thermal image."
+                                    
+                                    # Ensure image is properly formatted
+                                    if isinstance(image, str):
+                                        image = Image.open(image)
+                                    if image.mode != 'RGB':
+                                        image = image.convert('RGB')
+                                    
+                                    # Resize to standard size
+                                    resized_image = image.resize((224, 224), Image.Resampling.LANCZOS)
+                                    
+                                    inputs = blip_processor(resized_image, simple_prompt, return_tensors="pt").to(self.device)
+                                    with torch.no_grad():
+                                        outputs = blip_model.generate(
+                                            **inputs, 
+                                            max_length=80,
+                                            num_beams=1,
+                                            do_sample=True,
+                                            temperature=0.7,
+                                            top_p=0.9,
+                                            repetition_penalty=1.0,
+                                            early_stopping=True
+                                        )
+                                    
+                                    analysis = blip_processor.decode(outputs[0], skip_special_tokens=True)
+                                    
+                                    if analysis and len(analysis.strip()) > 10:
+                                        st.success("✅ Simplified BLIP approach succeeded")
+                                        return analysis
+                                    else:
+                                        st.warning("⚠️ Simplified BLIP also failed")
+                                        return None
+                                        
+                                except Exception as simple_blip_error:
+                                    st.warning(f"⚠️ Simplified BLIP also failed: {str(simple_blip_error)}")
+                                    return None
                             try:
                                 # Alternative approach using direct model processing
                                 resized_image = image.resize((224, 224), Image.Resampling.LANCZOS)

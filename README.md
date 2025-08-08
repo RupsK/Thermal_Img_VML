@@ -50,25 +50,57 @@ The Thermal Image AI Analyzer is a cutting-edge web application that leverages a
    pip install -r requirements.txt
    ```
 
-4. **Run the application:**
+4. **Configure your Hugging Face token:**
+   
+   **Option A: Interactive Setup (Recommended)**
+   ```bash
+   python setup_tokens.py
+   ```
+   
+   **Option B: Manual Setup**
+   - Copy `secrets_template.py` to `secrets.py`
+   - Edit `secrets.py` and add your Hugging Face token
+   - Get your token from: https://huggingface.co/settings/tokens
+
+5. **Run the application:**
    ```bash
    streamlit run streamlit_app.py
    ```
 
-5. **Open your browser:**
+6. **Test the configuration (optional):**
+   ```bash
+   python test_config.py
+   ```
+
+7. **Open your browser:**
    Navigate to `http://localhost:8501`
 
 ## 🚀 Usage Guide
 
-### 1. Configuration Setup
+### 1. Token Configuration
+
+**Hugging Face Token Setup:**
+The application requires a Hugging Face token to access AI models. This token is stored securely in a local `secrets.py` file that is automatically ignored by git.
+
+**Getting Your Token:**
+1. Visit https://huggingface.co/settings/tokens
+2. Click "New token"
+3. Give it a name (e.g., "Thermal Analyzer")
+4. Select "Read" role
+5. Copy the generated token
+
+**Setting Up Your Token:**
+- **Interactive Setup:** Run `python setup_tokens.py` for guided setup
+- **Manual Setup:** Copy `secrets_template.py` to `secrets.py` and edit with your token
+
+### 2. Configuration Setup
 
 **Settings Panel (Left Sidebar):**
-- **Hugging Face Token:** Configure your HF token for model access
 - **VLM Model Selection:** Choose from available AI models
 - **Domain Knowledge:** Select specialized analysis domains
 - **Custom Prompts:** Add specific analysis requirements
 
-### 2. Image Input
+### 3. Image Input
 
 **Two Input Methods:**
 - **File Upload:** Drag and drop or browse for thermal images
@@ -78,14 +110,14 @@ The Thermal Image AI Analyzer is a cutting-edge web application that leverages a
 - JPG, JPEG, PNG, BMP, TIFF, TIF
 - File size limit: 200MB
 
-### 3. Analysis Process
+### 4. Analysis Process
 
 1. **Select Input:** Choose uploaded file or test image
 2. **Configure Settings:** Adjust model, domain, and prompt settings
 3. **Run Analysis:** Click "Analyze Selected Image"
 4. **View Results:** Comprehensive analysis with metrics and insights
 
-### 4. Results Interpretation
+### 5. Results Interpretation
 
 **Temperature Statistics:**
 - Mean, Max, Min temperatures

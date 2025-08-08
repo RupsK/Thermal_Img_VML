@@ -3,6 +3,10 @@
 .env.local
 .env.production
 
+# Secrets configuration
+secrets.py
+app_secrets.py
+
 # Python
 __pycache__/
 *.py[cod]

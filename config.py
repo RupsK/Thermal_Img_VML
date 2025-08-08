@@ -5,14 +5,24 @@ Configuration settings for Thermal Image AI Analyzer
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables from .env file (for backward compatibility)
 load_dotenv()
+
+# Try to import app_secrets, fallback to environment variables
+try:
+    from app_secrets import HUGGINGFACE_TOKEN, USE_GPU, LOW_MEMORY_MODE
+    print("✅ Using app_secrets.py configuration")
+except ImportError as e:
+    print(f"⚠️ app_secrets.py not found, using environment variables. Error: {e}")
+    HUGGINGFACE_TOKEN = os.getenv('HUGGINGFACE_TOKEN', '')
+    USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
+    LOW_MEMORY_MODE = os.getenv('LOW_MEMORY_MODE', 'false').lower() == 'true'
 
 class Config:
     """Configuration class for the Thermal Image AI Analyzer"""
     
-    # Hugging Face Token - load from environment variable
-    HF_TOKEN = os.getenv('HUGGINGFACE_TOKEN', '')
+    # Hugging Face Token - load from secrets or environment variable
+    HF_TOKEN = HUGGINGFACE_TOKEN
     
     # Model configurations
     MODELS = {
@@ -35,11 +45,11 @@ class Config:
     
     # Model settings
     DEFAULT_MODEL = "BLIP Base"
-    # Force CPU for cloud deployment (no GPU available)
-    DEVICE = "cpu" if os.getenv('FORCE_CPU', 'true').lower() == 'true' else ("cuda" if os.getenv('USE_GPU', 'false').lower() == 'true' else "cpu")
+    # Device configuration - use secrets or environment variables
+    DEVICE = "cpu" if os.getenv('FORCE_CPU', 'true').lower() == 'true' else ("cuda" if USE_GPU else "cpu")
     
     # Memory management
-    LOW_MEMORY_MODE = os.getenv('LOW_MEMORY_MODE', 'false').lower() == 'true'
+    LOW_MEMORY_MODE = LOW_MEMORY_MODE
     
     @classmethod
     def validate_config(cls):
