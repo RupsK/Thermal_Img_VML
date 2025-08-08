@@ -1,0 +1,29 @@
+# Copy this file to .env and fill in your actual values
+# Hugging Face Configuration
+# Get your token from: https://huggingface.co/settings/tokens
+HUGGINGFACE_TOKEN=your_huggingface_token_here
+
+# Hardware Configuration
+USE_GPU=true
+LOW_MEMORY_MODE=false
+
+# App Configuration
+STREAMLIT_SERVER_PORT=8501
+STREAMLIT_SERVER_ADDRESS=0.0.0.0
+
+# Model Configuration
+DEFAULT_MODEL=BLIP Base
+ENSEMBLE_ENABLED=false
+
+# Processing Configuration
+MAX_FILE_SIZE=209715200
+BATCH_SIZE=1
+MAX_WORKERS=4
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=thermal_analyzer.log
+
+# Security Configuration
+ENABLE_TOKEN_OVERRIDE=false
+REQUIRE_AUTHENTICATION=false
